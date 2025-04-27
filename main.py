@@ -1,12 +1,23 @@
 from mcp.server.fastmcp import FastMCP
 from bs4 import BeautifulSoup
-from typing import Optional, List
+from typing import Optional, List, Dict
 import requests
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 import json
 import os
 import csv
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.lex_rank import LexRankSummarizer
+import imapclient
+from email import policy
+from email.parser import BytesParser
+import html2text
+from datetime import datetime
+from dotenv import load_dotenv
+
+load_dotenv()  # Load environment variables from .env file
 
 # Create an MCP server
 mcp = FastMCP("main")
@@ -17,11 +28,11 @@ def add(a: int, b: int) -> int:
     """Add two numbers"""
     return a + b
 
-# Web data extractor
+# Combined web data extractor
 @mcp.tool()
-def extract_web_data(url: str, css_selector: Optional[str] = None) -> List[str]:
+def extract_web_data_auto(url: str, css_selector: Optional[str] = None) -> List[str]:
     """
-    Extract data from a website.
+    Extract data from a website, automatically handling both static and dynamic content.
     
     Args:
         url: The URL of the website to scrape
@@ -33,72 +44,73 @@ def extract_web_data(url: str, css_selector: Optional[str] = None) -> List[str]:
     try:
         response = requests.get(url)
         response.raise_for_status()
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup_static = BeautifulSoup(response.text, 'html.parser')
         
         if css_selector:
-            elements = soup.select(css_selector)
-            return [element.get_text(strip=True) for element in elements if element.get_text(strip=True)]
-        else:
-            for element in soup(['script', 'style']):
-                element.decompose()
-            return [soup.get_text(strip=True)]
-            
-    except requests.RequestException as e:
-        return [f"Error fetching URL: {str(e)}"]
+            elements_static = soup_static.select(css_selector)
+            if elements_static:
+                return [element.get_text(strip=True) for element in elements_static if element.get_text(strip=True)]
+        
+        return _extract_with_selenium(url, css_selector)
+    
+    except requests.RequestException:
+        return _extract_with_selenium(url, css_selector)
+    
     except Exception as e:
-        return [f"Error processing content: {str(e)}"]
+        return [f"Unexpected error: {str(e)}"]
 
-# Dynamic web scraper
-@mcp.tool()
-def extract_dynamic_web_data(url: str, css_selector: Optional[str] = None) -> List[str]:
-    """
-    Extract data from a website with JavaScript-rendered content using Selenium.
+# Helper function for Selenium-based scraping
+def _extract_with_selenium(url: str, css_selector: Optional[str] = None) -> List[str]:
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    driver = webdriver.Chrome(options=chrome_options)
     
-    Args:
-        url: The URL of the website to scrape
-        css_selector: Optional CSS selector to extract specific elements (e.g., 'div.content', 'p')
-    
-    Returns:
-        List of extracted text content
-    """
     try:
-        chrome_options = Options()
-        chrome_options.add_argument("--headless")
-        chrome_options.add_argument("--disable-gpu")
-        driver = webdriver.Chrome(options=chrome_options)
-        
         driver.get(url)
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        driver.quit()
+        page_source = driver.page_source
+        soup = BeautifulSoup(page_source, 'html.parser')
         
         if css_selector:
             elements = soup.select(css_selector)
-            return [element.get_text(strip=True) for element in elements if element.get_text(strip=True)]
+            result = [element.get_text(strip=True) for element in elements if element.get_text(strip=True)]
         else:
             for element in soup(['script', 'style']):
                 element.decompose()
-            return [soup.get_text(strip=True)]
-            
+            result = [soup.get_text(strip=True)]
+        
+        return result
+    
     except Exception as e:
-        return [f"Error processing dynamic content: {str(e)}"]
+        return [f"Selenium error: {str(e)}"]
+    
+    finally:
+        driver.quit()
 
-# Generic API data fetcher
+# Fetch API data
 @mcp.tool()
-def fetch_api_data(api_url: str, endpoint: str, params: Optional[dict] = None) -> dict:
+def fetch_api_data(api_url: str, endpoint: str, method: str = "GET", params: Optional[Dict] = None, body: Optional[Dict] = None, headers: Optional[Dict] = None, timeout: int = 10) -> Dict:
     """
     Fetch data from a public API in real time.
     
     Args:
-        api_url: The base URL of the API (e.g., 'https://api.openweathermap.org')
-        endpoint: The specific endpoint (e.g., '/data/2.5/weather')
-        params: Optional dictionary of query parameters (e.g., {'q': 'London', 'appid': 'your_key'})
+        api_url: The base URL of the API
+        endpoint: The specific endpoint path
+        method: HTTP method (e.g., 'GET', 'POST', 'PUT', 'DELETE')
+        params: Optional dictionary of query parameters
+        body: Optional dictionary for the request body (JSON-encoded)
+        headers: Optional dictionary of HTTP headers
+        timeout: Request timeout in seconds (default: 10)
     
     Returns:
         Dictionary containing the API response
     """
+    full_url = f"{api_url.rstrip('/')}/{endpoint.lstrip('/')}"
+    if method.upper() in ['GET', 'DELETE'] and body is not None:
+        return {"error": "Body is not allowed for GET and DELETE methods"}
+    
     try:
-        full_url = f"{api_url.rstrip('/')}/{endpoint.lstrip('/')}"
-        response = requests.get(full_url, params=params)
+        response = requests.request(method, full_url, params=params, json=body, headers=headers, timeout=timeout)
         response.raise_for_status()
         return response.json()
         
@@ -138,3 +150,97 @@ def read_local_file(file_path: str, file_type: str = "text") -> List[str]:
             
     except Exception as e:
         return [f"Error reading file: {str(e)}"]
+
+# # Email summarizer
+# @mcp.tool()
+# def summarize_emails(email_texts: List[str], language: str = "english", summary_length: int = 3) -> List[str]:
+#     """
+#     Summarize a list of email texts using the LexRank algorithm.
+    
+#     Args:
+#         email_texts: List of email texts to summarize
+#         language: Language of the emails (default: 'english')
+#         summary_length: Number of sentences in each summary (default: 3)
+    
+#     Returns:
+#         List of summaries, one for each email
+#     """
+#     try:
+#         summaries = []
+#         for email_text in email_texts:
+#             if not email_text.strip():
+#                 summaries.append("Error: Empty email text")
+#                 continue
+#             parser = PlaintextParser.from_string(email_text, Tokenizer(language))
+#             summarizer = LexRankSummarizer()
+#             summary = summarizer(parser.document, summary_length)
+#             summaries.append(" ".join(str(sentence) for sentence in summary))
+#         return summaries
+#     except Exception as e:
+#         return [f"Error summarizing emails: {str(e)}"]
+
+# # Tool for fetching and summarizing daily emails
+# @mcp.tool()
+# def get_daily_email_summary(language: str = "english", summary_length: int = 3) -> List[str]:
+#     """
+#     Fetch emails from today and return their summaries.
+    
+#     Args:
+#         language: Language of the emails (default: 'english')
+#         summary_length: Number of sentences in each summary (default: 3)
+    
+#     Returns:
+#         List of summaries for today's emails
+#     """
+#     # Email credentials (replace with your actual credentials)
+#     username = os.getenv('USERNAME')  # Replace with your Gmail address
+#     password = os.getenv('PASSWORD')     # Replace with your Gmail app password
+
+#     if not username or not password:
+#         return ["Error: Email username or password not set"]
+
+#     # Connect to Gmail IMAP server
+#     try:
+#         imap_obj = imapclient.IMAPClient('imap.gmail.com', ssl=True)
+#         imap_obj.login(username, password)
+#         imap_obj.select_folder('INBOX', readonly=True)
+#     except Exception as e:
+#         return [f"Error connecting to IMAP server: {str(e)}"]
+
+#     # Get today's date
+#     today = datetime.now().strftime('%d-%b-%Y')
+
+#     # Search for emails from today
+#     try:
+#         search_criteria = f'(SINCE "{today}")'
+#         messages = imap_obj.search(search_criteria)
+#     except Exception as e:
+#         imap_obj.logout()
+#         return [f"Error searching emails: {str(e)}"]
+
+#     # Fetch email contents
+#     email_texts = []
+#     for msg_id in messages:
+#         try:
+#             raw_message = imap_obj.fetch(msg_id, ['RFC822'])[msg_id][b'RFC822']
+#             msg = BytesParser(policy=policy.default).parsebytes(raw_message)
+#             text = ""
+#             for part in msg.walk():
+#                 if part.get_content_type() == 'text/plain':
+#                     text = part.get_payload(decode=True).decode()
+#                     break
+#                 elif part.get_content_type() == 'text/html':
+#                     html = part.get_payload(decode=True).decode()
+#                     text = html2text.html2text(html)
+#                     break
+#             if text:
+#                 email_texts.append(text)
+#         except Exception as e:
+#             continue  # Skip problematic emails
+
+#     imap_obj.logout()
+
+#     # Summarize emails
+#     if not email_texts:
+#         return ["No emails found for today"]
+#     return summarize_emails(email_texts, language, summary_length)

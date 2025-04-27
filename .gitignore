@@ -10,3 +10,4 @@ uv.lock
 README.md
 # Virtual environments
 .venv
+.env
