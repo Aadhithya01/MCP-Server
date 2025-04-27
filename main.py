@@ -16,6 +16,8 @@ from email.parser import BytesParser
 import html2text
 from datetime import datetime
 from dotenv import load_dotenv
+import subprocess
+from typing import Union
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -150,6 +152,33 @@ def read_local_file(file_path: str, file_type: str = "text") -> List[str]:
             
     except Exception as e:
         return [f"Error reading file: {str(e)}"]
+
+# New tool to run terminal commands
+@mcp.tool()
+def run_terminal_command(command: Union[str, List[str]]) -> List[str]:
+    """
+    Run a command in the terminal and return the output.
+
+    Args:
+        command: The command to run. If str, it will be run with shell=True. If List[str], it will be run with shell=False.
+
+    Note: When passing a string, shell=True is used, which can pose a security risk if the command is constructed from untrusted input. When passing a list, shell=False is used, which is safer.
+
+    Returns:
+        A list of strings representing the output lines if successful, or an error message if failed.
+    """
+    try:
+        if isinstance(command, str):
+            result = subprocess.run(command, shell=True, capture_output=True, text=True, check=False)
+        else:
+            result = subprocess.run(command, shell=False, capture_output=True, text=True, check=False)
+        
+        if result.returncode == 0:
+            return result.stdout.splitlines()
+        else:
+            return [f"Command failed with return code {result.returncode}: {result.stderr}"]
+    except Exception as e:
+        return [f"Error running command: {str(e)}"]
 
 # # Email summarizer
 # @mcp.tool()
