@@ -99,13 +99,17 @@ output = run_terminal_command("ls -la | grep .py")
 
 ## Tool Reference
 
-### `add(a: int, b: int) -> int`
+```python
+add(a: int, b: int) -> int
+```
 
-A simple utility to add two numbers.
+### A simple utility to add two numbers.
 
-### `extract_web_data_auto(url: str, css_selector: Optional[str] = None) -> List[str]`
+```python 
+extract_web_data_auto(url: str, css_selector: Optional[str] = None) -> List[str]
+```
 
-Extract text content from websites, automatically handling both static and dynamic content.
+### Extract text content from websites, automatically handling both static and dynamic content.
 
 - **Parameters:**
   - `url`: The website URL to scrape
@@ -113,7 +117,9 @@ Extract text content from websites, automatically handling both static and dynam
 
 - **Returns:** List of extracted text content
 
-### `fetch_api_data(api_url: str, endpoint: str, method: str = "GET", params: Optional[Dict] = None, body: Optional[Dict] = None, headers: Optional[Dict] = None, timeout: int = 10) -> Dict`
+```python
+fetch_api_data(api_url: str, endpoint: str, method: str = "GET", params: Optional[Dict] = None, body: Optional[Dict] = None, headers: Optional[Dict] = None, timeout: int = 10) -> Dict
+```
 
 Fetch data from a public API.
 
@@ -128,7 +134,9 @@ Fetch data from a public API.
 
 - **Returns:** Dictionary containing the API response
 
-### `read_local_file(file_path: str, file_type: str = "text") -> List[str]`
+```python
+read_local_file(file_path: str, file_type: str = "text") -> List[str]
+```
 
 Read content from a local text or CSV file.
 
@@ -138,7 +146,9 @@ Read content from a local text or CSV file.
 
 - **Returns:** List of file content
 
-### `run_terminal_command(command: Union[str, List[str]]) -> List[str]`
+```python
+run_terminal_command(command: Union[str, List[str]]) -> List[str]
+```
 
 Run a command in the terminal and return the output.
 
@@ -146,17 +156,3 @@ Run a command in the terminal and return the output.
   - `command`: Command to run (string or list of strings)
 
 - **Returns:** List of output lines or error message
-
-## Security Notes
-
-- When using `run_terminal_command`, prefer passing commands as lists (`shell=False`) rather than strings (`shell=True`) to minimize security risks
-- Store sensitive information in environment variables, not directly in code
-- Be mindful of website terms of service when using the web scraping tools
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
