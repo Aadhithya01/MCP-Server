@@ -77,25 +77,54 @@ if __name__ == "__main__":
 
 ### Available Tools
 
-The toolkit provides the following tools, each accessible via the `mcp.tool()` decorator.
+#### 1. Web Data Extraction
 
-#### 1\. `add(a: int, b: int) -> int`
+```python
+# Extract text from a website
+result = extract_web_data_auto("https://example.com", "div.content")
+```
 
-A simple utility function to add two integers.
+#### 2. API Data Fetching
 
-* *   **Parameters**:* *   `a`: First integer
-*     * *   `b`: Second integer
-* *   **Returns**: Sum of `a` and `b`
-* *   **Example**:
-*     
-*     ```python
-*     result = add(5, 3)  # Returns 8
-*     ```
-*     
+```python
+# Get data from a REST API
+data = fetch_api_data(
+    api_url="https://api.example.com",
+    endpoint="/users",
+    method="GET",
+    params={"limit": 10}
+)
+```
 
-#### 2\. `extract_web_data_auto(url: str, css_selector: Optional[str] = None) -> List[str]`
+#### 3. Reading Local Files
 
-Extract text content from websites, automatically handling both static and dynamic content using a hybrid approach (BeautifulSoup for static content, Selenium for dynamic content).
+```python
+# Read a text file
+lines = read_local_file("data/example.txt", "text")
+
+# Read a CSV file
+rows = read_local_file("data/data.csv", "csv")
+```
+
+#### 4. Running Terminal Commands
+
+```python
+# Run a command safely (recommended approach)
+output = run_terminal_command(["ls", "-la"])
+
+# Run a command with shell=True (use with caution)
+output = run_terminal_command("ls -la | grep .py")
+```
+
+## Tool Reference
+
+### `add(a: int, b: int) -> int`
+
+A simple utility to add two numbers.
+
+### `extract_web_data_auto(url: str, css_selector: Optional[str] = None) -> List[str]`
+
+Extract text content from websites, automatically handling both static and dynamic content.
 
 * *   **Parameters**:* *   `url`: The website URL to scrape (e.g., `https://example.com`)
 *     * *   `css_selector`: Optional CSS selector to target specific elements (e.g., `div.content`, `p`)
@@ -108,52 +137,32 @@ Extract text content from websites, automatically handling both static and dynam
 *     ```
 *     
 
-#### 3\. `fetch_api_data(api_url: str, endpoint: str, method: str = "GET", params: Optional[Dict] = None, body: Optional[Dict] = None, headers: Optional[Dict] = None, timeout: int = 10) -> Dict`
+### `fetch_api_data(api_url: str, endpoint: str, method: str = "GET", params: Optional[Dict] = None, body: Optional[Dict] = None, headers: Optional[Dict] = None, timeout: int = 10) -> Dict`
 
 Fetch data from a public API with support for various HTTP methods.
 
-* *   **Parameters**:* *   `api_url`: Base URL of the API (e.g., `https://api.example.com`)
-*     * *   `endpoint`: Specific endpoint path (e.g., `/users`)
-*     * *   `method`: HTTP method (`GET`, `POST`, `PUT`, `DELETE`; default: `GET`)
-*     * *   `params`: Optional dictionary of query parameters
-*     * *   `body`: Optional dictionary for the request body (JSON-encoded; for `POST`/`PUT`)
-*     * *   `headers`: Optional dictionary of HTTP headers
-*     * *   `timeout`: Request timeout in seconds (default: 10)
-* *   **Returns**: Dictionary containing the API response or an error message
-* *   **Example**:
-*     
-*     ```python
-*     data = fetch_api_data(
-*         api_url="https://api.example.com",
-*         endpoint="/users",
-*         method="GET",
-*         params={"limit": 10}
-*     )
-*     print(data)  # Prints API response as a dictionary
-*     ```
-*     
+- **Parameters:**
+  - `api_url`: Base URL of the API
+  - `endpoint`: Specific endpoint path
+  - `method`: HTTP method (GET, POST, PUT, DELETE)
+  - `params`: Query parameters
+  - `body`: Request body (for POST/PUT)
+  - `headers`: HTTP headers
+  - `timeout`: Request timeout in seconds
 
-#### 4\. `read_local_file(file_path: str, file_type: str = "text") -> List[str]`
+- **Returns:** Dictionary containing the API response
+
+### `read_local_file(file_path: str, file_type: str = "text") -> List[str]`
 
 Read content from a local text or CSV file.
 
-* *   **Parameters**:* *   `file_path`: Path to the file (relative or absolute)
-*     * *   `file_type`: Type of file (`text` or `csv`; default: `text`)
-* *   **Returns**: List of file content (lines for text files, rows for CSV files)
-* *   **Example**:
-*     
-*     ```python
-*     # Read a text file
-*     lines = read_local_file("data/example.txt", "text")
-*     print(lines)  # Prints list of non-empty lines
-*     
-*     # Read a CSV file
-*     rows = read_local_file("data/data.csv", "csv")
-*     print(rows)  # Prints list of comma-joined rows
-*     ```
-*     
+- **Parameters:**
+  - `file_path`: Path to the file
+  - `file_type`: Type of file ('text' or 'csv')
 
-#### 5\. `run_terminal_command(command: Union[str, List[str]]) -> List[str]`
+- **Returns:** List of file content
+
+### `run_terminal_command(command: Union[str, List[str]]) -> List[str]`
 
 Execute a terminal command and capture its output.
 
@@ -176,22 +185,14 @@ Execute a terminal command and capture its output.
 
 ## Security Notes
 
-* *   **Terminal Commands**:* *   Prefer passing commands as lists (`shell=False`) to `run_terminal_command` to avoid shell injection risks.
-*     * *   Avoid using `shell=True` with untrusted input to prevent security vulnerabilities.
-* *   **Environment Variables**:* *   Store sensitive information (e.g., API keys, passwords) in the `.env` file, not directly in the code.
-* *   **Web Scraping**:* *   Respect website terms of service and robots.txt when scraping.
-*     * *   Use appropriate rate limiting to avoid overwhelming servers.
-* *   **API Usage**:* *   Ensure API credentials are securely stored in environment variables.
-*     * *   Validate API responses to handle errors gracefully.
+- When using `run_terminal_command`, prefer passing commands as lists (`shell=False`) rather than strings (`shell=True`) to minimize security risks
+- Store sensitive information in environment variables, not directly in code
+- Be mindful of website terms of service when using the web scraping tools
 
 ## Contributing
 
-Contributions are welcome! To contribute:
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-1. 1.  Fork the repository.
-1. 2.  Create a feature branch (`git checkout -b feature/your-feature`).
-1. 3.  Commit your changes (`git commit -m "Add your feature"`).
-1. 4.  Push to the branch (`git push origin feature/your-feature`).
-1. 5.  Open a Pull Request.
+## License
 
-Please ensure your code follows the project's coding standards and includes appropriate tests.
+This project is licensed under the MIT License - see the LICENSE file for details.
